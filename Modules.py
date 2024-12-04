@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 class PolicyNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(PolicyNetwork, self).__init__()
+        #s=[sin(angle), cos(angle), angular velocity]
         self.fc1 = nn.Linear(input_dim, 64)
         self.mu = nn.Linear(64, output_dim)
         self.log_std = nn.Parameter(torch.zeros(1, output_dim))
@@ -57,21 +58,19 @@ class CriticNetwork(nn.Module):
 
 
 class ReplayBuffer:
-    def __init__(self, batch_size=10000):
+    def __init__(self, batch_size):
         self.states = []
         self.actions = []
         self.rewards = []
-        self.rewards_togo = []
         self.advantages = []
         self.values = []
         self.log_probs = []
         self.batch_size = batch_size
 
-    def push(self, state, action, reward, reward_togo, advantage, value, log_prob):
+    def push(self, state, action, reward, advantage, value, log_prob):
         self.states.append(state)
         self.actions.append(action)
         self.rewards.append(reward)
-        self.rewards_togo.append(reward_togo)
         self.advantages.append(advantage)
         self.values.append(value)  
         self.log_probs.append(log_prob)
@@ -85,7 +84,6 @@ class ReplayBuffer:
         return (torch.tensor(self.states), 
                 torch.tensor(self.actions), 
                 torch.tensor(self.rewards),
-                torch.tensor(self.rewards_togo),
                 torch.tensor(self.advantages),
                 torch.tensor(self.values),
                 torch.tensor(self.log_probs), 
@@ -95,7 +93,6 @@ class ReplayBuffer:
         self.states = []
         self.actions = []
         self.rewards = []
-        self.rewards_togo = []
         self.advantages = []
         self.values = []
         self.log_probs = []
