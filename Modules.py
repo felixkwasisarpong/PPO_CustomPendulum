@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import gym
 import matplotlib.pyplot as plt
-
+import torch.nn.functional as F
 
 
 
@@ -40,19 +40,61 @@ class ActorNetwork(nn.Module):
         std = torch.exp(log_std)  # Convert log_std to standard deviation
         return mu, std
 
-
 class CriticNetwork(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_size=2, hidden_size=32, output_size=1, num_layers=2, activation=nn.functional.relu):
         super(CriticNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 64)  # First hidden layer
-        self.fc2 = nn.Linear(64, 64)        # Second hidden layer
-        self.value = nn.Linear(64, 1)       # Output layer: scalar value
 
-    def forward(self, state):
-        x = torch.relu(self.fc1(state))    # Apply ReLU to the first layer
-        x = torch.relu(self.fc2(x))        # Apply ReLU to the second layer
-        value = self.value(x)              # Scalar value output
-        return value  # Return scalar value for the state
+        # Readout layer
+        self.fc1 = nn.Linear(hidden_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, output_size)
+
+        # RNN layer
+        self.rnn_layer = nn.RNN(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+
+        # Initialize hidden state with zeros
+        self.hidden = torch.zeros(num_layers, hidden_size)
+
+        self.act = activation
+
+    def forward(self, x):
+
+        # We need to detach the hidden state to prevent exploding/vanishing gradients
+        # This is part of truncated backpropagation through time (BPTT)
+        out, self.hidden = self.rnn_layer(x, self.hidden.detach())
+        
+        out = self.act(self.fc1(out))
+        out = self.fc2(out)
+        
+        return out
+
+
+
+class RecurrentPolicyNetwork(nn.Module):
+    def __init__(self, input_size=2, hidden_size=32, output_size=1, num_layers=2, activation=nn.functional.relu):
+        super(RecurrentPolicyNetwork, self).__init__()
+
+        # Readout layer
+        self.fc1 = nn.Linear(hidden_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, output_size)
+
+        # RNN layer
+        self.rnn_layer = nn.RNN(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+
+        # Initialize hidden state with zeros
+        self.hidden = torch.zeros(num_layers, hidden_size)
+
+        self.act = activation
+
+    def forward(self, x):
+
+        # We need to detach the hidden state to prevent exploding/vanishing gradients
+        # This is part of truncated backpropagation through time (BPTT)
+        out, self.hidden = self.rnn_layer(x, self.hidden.detach())
+        
+        out = self.act(self.fc1(out))
+        out = self.fc2(out)
+        
+        return out
 
 
 
